@@ -14,7 +14,6 @@ const sheets = {
 const buttons = document.getElementById("class-buttons");
 const container = document.getElementById("table-container");
 
-// Създаване на бутони за класовете
 for (let name in sheets) {
   const btn = document.createElement("button");
   btn.textContent = name;
@@ -22,7 +21,6 @@ for (let name in sheets) {
   buttons.appendChild(btn);
 }
 
-// Зареждане на таблица от Google Sheets
 async function loadSheet(name, url, button) {
   document.querySelectorAll("#class-buttons button").forEach(b => b.classList.remove("active"));
   button.classList.add("active");
@@ -31,28 +29,21 @@ async function loadSheet(name, url, button) {
   try {
     const res = await fetch(url);
     const text = await res.text();
-
-    // Проверка дали има валиден JSON
-    if (!text.includes("google.visualization.Query.setResponse")) {
-      throw new Error("Невалидни данни.");
-    }
-
+    if (!text.includes("google.visualization.Query.setResponse")) throw new Error("Невалидни данни.");
     const json = JSON.parse(text.substr(47).slice(0, -2));
-
-    if (!json.table || !json.table.rows) {
-      throw new Error("Празна или невалидна таблица.");
-    }
+    if (!json.table || !json.table.rows) throw new Error("Празна таблица.");
 
     const rows = json.table.rows.map(r => r.c.map(c => (c ? c.v : "")));
     const hasHeader = rows.length > 0 && rows[0].some(cell => cell !== "");
-
-    // Ако липсват заглавия – добавяме автоматични
     const headers = hasHeader ? rows[0] : ["Ученик", "Функционална грамотност", "Презентационни умения", "Практико-приложни умения", "Дисциплина и толерантност", "Групова работа"];
     const dataRows = hasHeader ? rows.slice(1) : rows;
 
-    const table = document.createElement("table");
+    const title = document.createElement("h2");
+    title.textContent = name;
+    container.innerHTML = "";
+    container.appendChild(title);
 
-    // Заглавия
+    const table = document.createElement("table");
     const trHead = document.createElement("tr");
     headers.forEach(h => {
       const th = document.createElement("th");
@@ -61,36 +52,42 @@ async function loadSheet(name, url, button) {
     });
     table.appendChild(trHead);
 
-    // Данни
     dataRows.forEach(row => {
       const tr = document.createElement("tr");
       row.forEach(cell => {
         const td = document.createElement("td");
         let val = cell ? cell.toString().trim() : "";
 
-        // Преобразуване на числата в текстови оценки
+        // Преобразуване на формат Date(...)
+        if (val.startsWith("Date(")) {
+          try {
+            const parts = val.match(/\d+/g);
+            if (parts && parts.length >= 3) {
+              const d = new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0);
+              val = d.toLocaleString("bg-BG", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+            }
+          } catch {}
+        }
+
+        // Превръщане на числа в текстови оценки
         if (val === "1") val = "надолу";
         else if (val === "2") val = "средно";
         else if (val === "3") val = "нагоре";
 
         td.textContent = val;
-
-        // Цветово кодиране
         const lower = val.toLowerCase();
-        if (lower.includes("надолу")) td.style.background = "#f8d7da"; // червено
-        else if (lower.includes("средно")) td.style.background = "#fff3cd"; // жълто
-        else if (lower.includes("нагоре")) td.style.background = "#d4edda"; // зелено
+        if (lower.includes("надолу")) td.style.background = "#f8d7da";
+        else if (lower.includes("средно")) td.style.background = "#fff3cd";
+        else if (lower.includes("нагоре")) td.style.background = "#d4edda";
 
         tr.appendChild(td);
       });
       table.appendChild(tr);
     });
 
-    container.innerHTML = "";
     container.appendChild(table);
 
   } catch (err) {
-    console.error(err);
     container.innerHTML = `<p style="color:red;">⚠️ Грешка при зареждането на ${name}: ${err.message}</p>`;
   }
 }
