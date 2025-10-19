@@ -39,12 +39,20 @@ async function loadSheet(name, url, button) {
       const tr = document.createElement("tr");
       row.forEach(cell => {
         const td = document.createElement(i === 0 ? "th" : "td");
-        td.textContent = cell;
 
-        const v = cell.toLowerCase();
-        if (v.includes("надолу")) td.style.background = "#f8d7da";
-        else if (v.includes("средно")) td.style.background = "#fff3cd";
-        else if (v.includes("нагоре")) td.style.background = "#d4edda";
+        // Преобразуване на числови стойности в текст
+        let val = cell ? cell.toString().trim() : "";
+        if (val === "1") val = "надолу";
+        else if (val === "2") val = "средно";
+        else if (val === "3") val = "нагоре";
+
+        td.textContent = val;
+
+        // Цветово кодиране
+        const lower = val.toLowerCase();
+        if (lower.includes("надолу")) td.style.background = "#f8d7da"; // червено
+        else if (lower.includes("средно")) td.style.background = "#fff3cd"; // жълто
+        else if (lower.includes("нагоре")) td.style.background = "#d4edda"; // зелено
 
         tr.appendChild(td);
       });
@@ -55,9 +63,6 @@ async function loadSheet(name, url, button) {
     container.appendChild(table);
 
   } catch (e) {
-    container.innerHTML = `<p style="color:red;">Грешка при зареждането на ${name}</p>`;
+    container.innerHTML = `<p style="color:red;">⚠️ Грешка при зареждането на ${name}</p>`;
   }
 }
-
-// Автоматично зареждане на първия клас
-loadSheet("Анализ 1 клас", sheets["Анализ 1 клас"], document.createElement("button"));
