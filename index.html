@@ -4,20 +4,83 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Анализ на резултатите по класове</title>
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f2f4f7;
+    }
+    #sidebar {
+      width: 220px;
+      background: #1e3a56;
+      color: white;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      padding: 15px;
+    }
+    #sidebar h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #class-buttons button {
+      width: 100%;
+      background: #2c5282;
+      color: white;
+      border: none;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      transition: 0.2s;
+    }
+    #class-buttons button:hover {
+      background: #2b6cb0;
+    }
+    #class-buttons button.active {
+      background: #63b3ed;
+      color: #1a202c;
+      font-weight: bold;
+    }
+    #main {
+      margin-left: 240px;
+      padding: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background: #edf2f7;
+    }
+    #table-container p {
+      text-align: center;
+      padding: 20px;
+      background: white;
+      border-radius: 6px;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <nav class="sidebar">
-      <h2>Класове</h2>
-      <ul id="classList"></ul>
-    </nav>
+  <div id="sidebar">
+    <h2>Класове</h2>
+    <div id="class-buttons"></div>
+  </div>
 
-    <main class="content">
-      <h1>АНАЛИЗ НА РЕЗУЛТАТИТЕ ПО КЛАСОВЕ</h1>
-      <p><em>Докладът се обновява автоматично при промени в данните.</em></p>
-      <div id="analysisArea">Изберете клас от менюто вляво.</div>
-    </main>
+  <div id="main">
+    <h1>АНАЛИЗ НА РЕЗУЛТАТИТЕ ПО КЛАСОВЕ</h1>
+    <p><i>Докладът се обновява автоматично при промени в данните.</i></p>
+    <div id="table-container">
+      <p>Изберете клас от менюто вляво.</p>
+    </div>
   </div>
 
   <script src="script.js"></script>
