@@ -1,93 +1,146 @@
-const sheets = {
-  "Анализ 1 клас": "https://docs.google.com/spreadsheets/d/1tvvb8eCofvNbWz8oLik31AFC6N3Ihn9KbUbeu6Fe4bw/gviz/tq?tqx=out:json",
-  "Анализ 2 клас": "https://docs.google.com/spreadsheets/d/14MRDL-yFVZThFQmsGjV15_4c6ttifYdS8RmpSbxFu4c/gviz/tq?tqx=out:json",
-  "Анализ 3 клас": "https://docs.google.com/spreadsheets/d/1BByEwgYj8_0nwfierHpGl0ltshUj25IYE_X7gA_CLsc/gviz/tq?tqx=out:json",
-  "Анализ 4 клас": "https://docs.google.com/spreadsheets/d/1pu8EUrP7fRR7l8WST2XsvD6UyPqFwnSptXM9Yh_RV68/gviz/tq?tqx=out:json",
-  "Анализ 5 клас": "https://docs.google.com/spreadsheets/d/1b8fe13gdMrPTD6MdWBUra0xZpSVEE9PEMtr53MPZLFI/gviz/tq?tqx=out:json",
-  "Анализ 6 клас": "https://docs.google.com/spreadsheets/d/1KXL3qRBIWDwPDkuPW2_GmJjoBsTR2XAxuUdQxjpmJGc/gviz/tq?tqx=out:json",
-  "Анализ 7 клас": "https://docs.google.com/spreadsheets/d/1dvD8S3p4Fvfb3oqQ-JXnHDrO0eto6dLBGi6yaxFLmd4/gviz/tq?tqx=out:json",
-  "Анализ 8 клас": "https://docs.google.com/spreadsheets/d/1yx4g0xqiFJfRK7AhumKH8GMNXLr_WSjjoWR-fdjOXcw/gviz/tq?tqx=out:json",
-  "Анализ 9 клас": "https://docs.google.com/spreadsheets/d/1pSpH6iB4yGj95OTh1FUcDk34Na15_YY9UHOsRyFtmvc/gviz/tq?tqx=out:json",
-  "Анализ 10 клас": "https://docs.google.com/spreadsheets/d/11MVzt6lhQe2CKiIxfomXMkzX-Oh1iLhctlVjMCfbEJA/gviz/tq?tqx=out:json"
-};
+<script>
+// ====== настройки ======
+const SHEET_NAME = 'Таблица';   // <-- точно от този таб ще четем
 
-const buttons = document.getElementById("class-buttons");
-const container = document.getElementById("table-container");
-
-for (let name in sheets) {
-  const btn = document.createElement("button");
-  btn.textContent = name;
-  btn.onclick = () => loadSheet(name, sheets[name], btn);
-  buttons.appendChild(btn);
+// Зареждане на класовете от JSON
+async function loadClasses() {
+  const res = await fetch('classes.json');
+  if (!res.ok) throw new Error('Не мога да прочета classes.json');
+  return res.json();
 }
 
-async function loadSheet(name, url, button) {
-  document.querySelectorAll("#class-buttons button").forEach(b => b.classList.remove("active"));
-  button.classList.add("active");
-  container.innerHTML = "<p>Зареждане на данни...</p>";
+// Построяване на gviz CSV линк към таб „Таблица“, независимо от дадения edit URL
+function buildCsvUrl(editUrl) {
+  // вадим Spreadsheet ID
+  const m = editUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!m) throw new Error('Невалиден Google Sheets линк: ' + editUrl);
+  const id = m[1];
+  // gviz CSV точно от таб „Таблица“
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+}
 
+// малка помощ за CSV -> масиви
+function parseCsv(text) {
+  // Прост CSV парсър, достатъчен за нашия случай (без вложени запетаи в кавички)
+  const lines = text.trim().split(/\r?\n/);
+  return lines.map(l => l.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.replace(/^"|"$/g, '')));
+}
+
+// цвят според стойност
+function pill(value) {
+  const v = (value || '').toLowerCase().trim();
+  let cls = 'pill-neutral';
+  if (v === 'нагоре') cls = 'pill-up';
+  else if (v === 'надолу') cls = 'pill-down';
+  else if (v === 'средно') cls = 'pill-mid';
+  return `<span class="pill ${cls}">${value || ''}</span>`;
+}
+
+// рисуване на таблица
+function renderTable(container, data) {
+  // очакваме заглавия: УЧЕНИК, ФУНКЦИОНАЛНА ГРАМОТНОСТ, ПРЕЗЕНТАЦИОННИ УМЕНИЯ, ПРАКТИКО-ПРИЛОЖНИ УМЕНИЯ, ДИСЦИПЛИНА И ТОЛЕРАНТНОСТ, ГРУПОВА РАБОТА
+  const headers = data[0] || [];
+  const idx = {
+    student: headers.findIndex(h => h.toLowerCase().includes('ученик')),
+    fg: headers.findIndex(h => h.toLowerCase().includes('функционална')),
+    prezent: headers.findIndex(h => h.toLowerCase().includes('презентацион')),
+    prak: headers.findIndex(h => h.toLowerCase().includes('практико')),
+    discipl: headers.findIndex(h => h.toLowerCase().includes('дисциплина')),
+    group: headers.findIndex(h => h.toLowerCase().includes('групова')),
+  };
+
+  const noData = data.length <= 1 || Object.values(idx).some(v => v === -1);
+  if (noData) {
+    container.innerHTML = `
+      <div class="card">
+        <p>Все още няма въведени данни за този клас (или листът „${SHEET_NAME}“ е празен).</p>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Ученик</th>
+            <th>Функционална грамотност</th>
+            <th>Презентационни умения</th>
+            <th>Практико-приложни умения</th>
+            <th>Дисциплина и толерантност</th>
+            <th>Групова работа</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[idx.student]) continue; // прескачаме празни
+    html += `
+      <tr>
+        <td>${row[idx.student] || ''}</td>
+        <td>${pill(row[idx.fg])}</td>
+        <td>${pill(row[idx.prezent])}</td>
+        <td>${pill(row[idx.prak])}</td>
+        <td>${pill(row[idx.discipl])}</td>
+        <td>${pill(row[idx.group])}</td>
+      </tr>
+    `;
+  }
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
+
+// зареждане и показване на конкретен клас
+async function showClass(targetEl, classItem) {
+  targetEl.innerHTML = `<div class="card"><p>Зареждам данните…</p></div>`;
   try {
-    const res = await fetch(url);
+    const csvUrl = buildCsvUrl(classItem.url);
+    const res = await fetch(csvUrl);
+    if (!res.ok) throw new Error('Грешка при четене на „Таблица“');
     const text = await res.text();
-    if (!text.includes("google.visualization.Query.setResponse")) throw new Error("Невалидни данни.");
-    const json = JSON.parse(text.substr(47).slice(0, -2));
-    if (!json.table || !json.table.rows) throw new Error("Празна таблица.");
-
-    const rows = json.table.rows.map(r => r.c.map(c => (c ? c.v : "")));
-    const hasHeader = rows.length > 0 && rows[0].some(cell => cell !== "");
-    const headers = hasHeader ? rows[0] : ["Ученик", "Функционална грамотност", "Презентационни умения", "Практико-приложни умения", "Дисциплина и толерантност", "Групова работа"];
-    const dataRows = hasHeader ? rows.slice(1) : rows;
-
-    const title = document.createElement("h2");
-    title.textContent = name;
-    container.innerHTML = "";
-    container.appendChild(title);
-
-    const table = document.createElement("table");
-    const trHead = document.createElement("tr");
-    headers.forEach(h => {
-      const th = document.createElement("th");
-      th.textContent = h || "Критерий";
-      trHead.appendChild(th);
-    });
-    table.appendChild(trHead);
-
-    dataRows.forEach(row => {
-      const tr = document.createElement("tr");
-      row.forEach(cell => {
-        const td = document.createElement("td");
-        let val = cell ? cell.toString().trim() : "";
-
-        // Преобразуване на формат Date(...)
-        if (val.startsWith("Date(")) {
-          try {
-            const parts = val.match(/\d+/g);
-            if (parts && parts.length >= 3) {
-              const d = new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0);
-              val = d.toLocaleString("bg-BG", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-            }
-          } catch {}
-        }
-
-        // Превръщане на числа в текстови оценки
-        if (val === "1") val = "надолу";
-        else if (val === "2") val = "средно";
-        else if (val === "3") val = "нагоре";
-
-        td.textContent = val;
-        const lower = val.toLowerCase();
-        if (lower.includes("надолу")) td.style.background = "#f8d7da";
-        else if (lower.includes("средно")) td.style.background = "#fff3cd";
-        else if (lower.includes("нагоре")) td.style.background = "#d4edda";
-
-        tr.appendChild(td);
-      });
-      table.appendChild(tr);
-    });
-
-    container.appendChild(table);
-
-  } catch (err) {
-    container.innerHTML = `<p style="color:red;">⚠️ Грешка при зареждането на ${name}: ${err.message}</p>`;
+    const data = parseCsv(text);
+    renderTable(targetEl, data);
+  } catch (e) {
+    targetEl.innerHTML = `
+      <div class="card error">
+        <p>Грешка: ${e.message}</p>
+        <p>Проверете дали листът <strong>„${SHEET_NAME}“</strong> съществува и съдържа данни.</p>
+      </div>`;
   }
 }
+
+// изграждане на менюто вляво
+function buildMenu(list, onPick) {
+  const ul = document.getElementById('menu');
+  ul.innerHTML = '';
+  list.forEach((c, i) => {
+    const li = document.createElement('li');
+    li.className = 'menu-item';
+    li.innerHTML = `<button>${c.label}</button>`;
+    li.querySelector('button').addEventListener('click', () => onPick(c, li));
+    ul.appendChild(li);
+  });
+}
+
+// Инициализация
+(async () => {
+  const classes = await loadClasses();
+  const content = document.getElementById('content');
+
+  buildMenu(classes, (cls, li) => {
+    document.querySelectorAll('#menu .menu-item').forEach(x => x.classList.remove('active'));
+    li.classList.add('active');
+    showClass(content, cls);
+  });
+
+  // по избор може да заредим първия автоматично:
+  // if (classes[0]) {
+  //   const firstLi = document.querySelector('#menu .menu-item');
+  //   firstLi?.classList.add('active');
+  //   showClass(content, classes[0]);
+  // }
+})();
+</script>
