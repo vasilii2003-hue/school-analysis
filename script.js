@@ -1,4 +1,8 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  console.log("✅ Скриптът е стартирал");
+const menu = document.querySelector(".menu");
+console.log("🔍 Елемент .menu:", menu);
+
   const menu = document.querySelector(".menu");
   const content = document.querySelector(".content");
 
